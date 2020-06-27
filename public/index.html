@@ -14,7 +14,24 @@
    
 </head>
 <body>
-  <canvas id='canvas'></canvas>
+  <canvas id='canvas' style='margin: 100px;'></canvas>
+  
+  <select id="actionOptions">
+    <option value="add">add</option>
+    <option value="deleteConnection">deleteConnection</option>
+    <option value="deleteModule">deleteModule</option>
+    <option value="debugging">debugging</option>
+  </select>
+  
+  <select id="partOptions">
+    <option value="reactor">reactor</option>
+    <option value="engine">engine</option>
+    <option value="fuelPlant">fuelPlant</option>
+    <option value="solarPanel">solarPanel</option>
+    <option value="cable">cable</option>
+    <option value="pipe">pipe</option>
+  </select>
+  
   <script src="./main.js"></script>
 </body>
 </html>
