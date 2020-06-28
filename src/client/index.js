@@ -94,7 +94,7 @@ canvas.addEventListener('click', event => {
       changeModule(cellPos, isAdd);
       break;
     default: // debug
-      console.log('a');
+      console.log(ship.getCell(cellPos).networks.cable.dirs);
   }
 
   
@@ -146,7 +146,6 @@ function changeModule(cellPos, isAdd) {
 
 
 function setLocalCellHighlight(cellPos, val) {
-  console.log(val);
   ship.getCell(cellPos).highlighted = val;
 }
 

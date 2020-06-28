@@ -104,6 +104,7 @@ export class Ship {
             }
         }
         if (connectionDir0To1) { // if not null then the cells are adjacent
+            let addConnectionDir = true;
             let cellsNetworks = []; // IdsOfnetworksInCells
             let networkIds = [];
             for (let cellPos of cellPositions) {
@@ -111,40 +112,62 @@ export class Ship {
                 cellsNetworks.push(cellsNetwork);
                 networkIds.push(cellsNetwork.id);
             }
-            if (networkIds[0] && networkIds[1]) {
-                if (networkIds[0] !==networkIds[1]) {
-                    let conquerersCellPositions; let conqueredCellPositions;
-                    let conquererId; let conqueredId;
+            if (networkIds[0] && networkIds[1]) { // if there are networks in both cells
+                if (networkIds[0] !== networkIds[1]) { // if they're not the same network
+                    // Then combine the networks ...
+                    let conquerorsCellPositions; let conqueredCellPositions;
+                    let conquerorId; let conqueredId;
                     let { cellPositions: network_0_cellPositions } = this.getNetwork(networkType, networkIds[0]);
                     let { cellPositions: network_1_cellPositions } = this.getNetwork(networkType, networkIds[1]);
                     
+                    // The larger network conquers the smaller network
                     if (network_0_cellPositions.length > network_1_cellPositions.length) {
-                        conquererId = networkIds[0]; conqueredId = networkIds[1];
-                        conquerersCellPositions = network_0_cellPositions; conqueredCellPositions = network_1_cellPositions; 
+                        conquerorId = networkIds[0]; conqueredId = networkIds[1];
+                        conquerorsCellPositions = network_0_cellPositions; conqueredCellPositions = network_1_cellPositions; 
                     } else {
-                        conquererId = networkIds[1]; conqueredId = networkIds[0];
-                        conquerersCellPositions = network_1_cellPositions; conqueredCellPositions = network_0_cellPositions; 
+                        conquerorId = networkIds[1]; conqueredId = networkIds[0];
+                        conquerorsCellPositions = network_1_cellPositions; conqueredCellPositions = network_0_cellPositions; 
                     }
                     
+                    // Conqueror grabs all the conquered cells
                     for (let cellPos of conqueredCellPositions) {
                         let cell = this.getCell(cellPos);
-                        cell.networks[networkType].id = conquererId;
-                        conquerersCellPositions.push(cellPos);
+                        cell.networks[networkType].id = conquerorId;
+                        conquerorsCellPositions.push(cellPos);
                     }
                     
+                    // Get rid of the conquered network
                     delete this.getNetwork(networkType, conqueredId);
-                    this.refreshNetworkIO(networkType, conquererId);
+                    
+                    // Refesh the conqueror
+                    this.refreshNetworkIO(networkType, conquerorId);
+                } else {
+                    // Else if they both have networks and they're the same then
+                    // there is nothing that needs to be done regarding networks
+                    // and if they already have a connection then skip adding a
+                    // connection.
+                    for (let existingDir of cellsNetworks[0].dirs) {
+                        // Only need to check on one side because there should
+                        // always be a corresponding other half of the
+                        // connection in the other cell.
+                        if (Vector2.areEqual(existingDir, connectionDir0To1)) {
+                            addConnectionDir = false;
+                        }
+                    }
                 }
-            } else if (networkIds[0]) {
+            } else if (networkIds[0]) { // there is a network in only the first cell
                 this.addCellsToNetwork([cellPositions[1]], networkType, networkIds[0]);
-            } else if (networkIds[1]) {
+            } else if (networkIds[1]) { // there is a network in only the second cell
                 this.addCellsToNetwork([cellPositions[0]], networkType, networkIds[1]);
-            } else {
+            } else { // Neither cell has a network, so create a new network
                 this.createNetworkWithCells(networkType, cellPositions);
             }
-            cellsNetworks[0].dirs.push(connectionDir0To1);
-            cellsNetworks[1].dirs.push(Vector2.scale(connectionDir0To1, -1));
-            return true;
+            
+            if (addConnectionDir) {
+                cellsNetworks[0].dirs.push(connectionDir0To1);
+                cellsNetworks[1].dirs.push(Vector2.scale(connectionDir0To1, -1));
+                return true;
+            }
         }
         return false;
     }
