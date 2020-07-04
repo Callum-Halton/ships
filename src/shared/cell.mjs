@@ -38,7 +38,7 @@ export default class Cell {
 	    let { cellSize, pipeWidth } = renderConstants;
 	    
       ctx.fillStyle = highlighted ? 'rgb(255, 255, 200)' 
-                    : networks.cable.id ? nColors[networks.cable.id]
+                    //: networks.cable.id ? nColors[networks.cable.id]
                     : 'rgb(255, 255, 255)';
       ctx.fillRect(x, y, cellSize, cellSize);
       

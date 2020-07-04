@@ -268,30 +268,37 @@ export class Ship {
             cells.push(this.getCell(cellPosForDeletion));
         }
         
-        let networksToRefreshInfo = this.eraseNetworkIdAndIOFromCells(networkType, cells);
+        let networkTypesOfNetworksToRefreshById = this.eraseNetworkIdAndIOFromCells(networkType, cells);
         
         let network = this.getNetwork(networkType, networkId);
         network.cellPositions =
-        network.cellPositions.filter( networkCellPos => {
-            for (let cellPosForDeletion of cellPositionsForDeletion) {
-                if (Vector2.areEqual(networkCellPos, cellPosForDeletion)) {
-                    return false;
+            network.cellPositions.filter( networkCellPos => {
+                for (let cellPosForDeletion of cellPositionsForDeletion) {
+                    if (Vector2.areEqual(networkCellPos, cellPosForDeletion)) {
+                        return false;
+                    }
                 }
-            }
-            return true;
-        });
+                return true;
+            });
         
-        for (let refreshNetworkId in networksToRefreshInfo) {
+        // TODO Next: Remember to change the name of the token after "in" below
+        // consistenly elsewhere.
+        for (let refreshNetworkId in networkTypesOfNetworksToRefreshById) {
+            // Question for Callum: why does refreshNetworkIO need to be given
+            // both the network type and the network ID? Is the network type
+            // not bound into the network object? In other words, given the
+            // network ID should you not be able to get the network type from
+            // network object itself?
             this.refreshNetworkIO(
-                networksToRefreshInfo[refreshNetworkId],
+                networkTypesOfNetworksToRefreshById[refreshNetworkId],
                 refreshNetworkId
             );
         }
     }
     
     eraseNetworkIdAndIOFromCells(networkType, cells) {
-        let networksToRefreshInfo = {};
-        networksToRefreshInfo[cells[0].networks[networkType].id] = networkType;
+        let networkTypesOfNetworksToRefreshById = {};
+        networkTypesOfNetworksToRefreshById[cells[0].networks[networkType].id] = networkType;
         
          for (let cell of cells) {
             cell.networks[networkType].id = null;
@@ -309,8 +316,8 @@ export class Ship {
                         if (modulesNetworkType !== networkType) {
                             let IdOfotherNetworkTypeInCell = cell.networks[modulesNetworkType].id;
                             if (IdOfotherNetworkTypeInCell) {
-                                if (!networksToRefreshInfo[IdOfotherNetworkTypeInCell]) {
-                                    networksToRefreshInfo[IdOfotherNetworkTypeInCell] = modulesNetworkType;
+                                if (!networkTypesOfNetworksToRefreshById[IdOfotherNetworkTypeInCell]) {
+                                    networkTypesOfNetworksToRefreshById[IdOfotherNetworkTypeInCell] = modulesNetworkType;
                                 }
                             }
                         }
@@ -320,14 +327,11 @@ export class Ship {
             }
         }
         
-        return networksToRefreshInfo;
+        return networkTypesOfNetworksToRefreshById;
     }
 
     //let dontCheckResource = true;
     //if (moduleSpecs.maxOutputs[networkType].resource === network.resource || dontCheckResource) {
-
-    // outstanding bugs:
-    //  + when deleting connection between 2 modules, all of each module's networks aren't refreshed!  
 
     refreshNetworkIO(networkType, networkId, sourceNetworkId=null) { 
         console.log(networkType);

@@ -23,6 +23,11 @@ io.on('connection', socket => {
 	    socket.broadcast.emit('addModule', data);
 	});
 	
+	socket.on('deleteModule', cellPos => {
+		ship.deleteModule(cellPos);
+		socket.broadcast.emit('deleteModule', cellPos);
+	});
+	
 	socket.on('addConnection', data => {
 		ship.addConnection(data.networkType, data.cellPositions);
 		socket.broadcast.emit('addConnection', data);
@@ -32,4 +37,5 @@ io.on('connection', socket => {
 		ship.deleteConnection(data.networkType, data.cellPositions);
 		socket.broadcast.emit('deleteConnection', data);
 	});
+	
 });

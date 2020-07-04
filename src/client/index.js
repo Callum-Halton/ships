@@ -94,7 +94,7 @@ canvas.addEventListener('click', event => {
       changeModule(cellPos, isAdd);
       break;
     default: // debug
-      console.log(ship.getCell(cellPos).networks.cable.dirs);
+      console.log(ship.getCell(cellPos).module);
   }
 
   
@@ -129,17 +129,13 @@ function changeModule(cellPos, isAdd) {
     lastClickCellPos = null;
   }
   
-  let data = {
-    moduleName: partOptions.value,
-    cellPos: cellPos
-  };
-  
   if (isAdd) { 
-    let valid = ship.addModule(data.moduleName, data.cellPos);
+    let data = { moduleName: partOptions.value, cellPos: cellPos };
+    let valid = ship.addModule(data.moduleName, cellPos);
     if (valid) { socket.emit('addModule', data); }
   } else {
-    let valid = ship.deleteModule( data.cellPos );
-    if (valid) { socket.emit('deleteModule', data); } 
+    let valid = ship.deleteModule(cellPos);
+    if (valid) { socket.emit('deleteModule', cellPos); } 
   }
 }
 
