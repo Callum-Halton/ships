@@ -7,7 +7,11 @@ import Vector2 from './vector2.mjs';
 class Network {
     constructor() {
         this.cellPositions = [];
-        //this.resource = null;
+        // this.resource = null;
+        
+        // for parent network to know demand
+        this.cappedConverterDSRatio = 0;
+        
     }
 }
 
@@ -17,7 +21,8 @@ export class ShipState {
         this.networkIndex = 0;
         this.networks = {
             pipe: {}, // networkId (e.g.'n0'): <network-instance>
-            cable: {}
+            cable: {},
+            duct: {}
         };
         this.cells = [];
         for (let row = 0; row < rows; row++) {
@@ -281,14 +286,7 @@ export class Ship {
                 return true;
             });
         
-        // TODO Next: Remember to change the name of the token after "in" below
-        // consistenly elsewhere.
         for (let refreshNetworkId in networkTypesOfNetworksToRefreshById) {
-            // Question for Callum: why does refreshNetworkIO need to be given
-            // both the network type and the network ID? Is the network type
-            // not bound into the network object? In other words, given the
-            // network ID should you not be able to get the network type from
-            // network object itself?
             this.refreshNetworkIO(
                 networkTypesOfNetworksToRefreshById[refreshNetworkId],
                 refreshNetworkId
@@ -309,9 +307,8 @@ export class Ship {
                 let { outputs } = module;
                 if (outputs[networkType]) {
                     
-                    outputs[networkType].output = 0;
-                    
                     for (let modulesNetworkType in outputs) {
+                        outputs[modulesNetworkType].output = 0;
                         
                         if (modulesNetworkType !== networkType) {
                             let IdOfotherNetworkTypeInCell = cell.networks[modulesNetworkType].id;
@@ -329,27 +326,31 @@ export class Ship {
         
         return networkTypesOfNetworksToRefreshById;
     }
-
-    //let dontCheckResource = true;
-    //if (moduleSpecs.maxOutputs[networkType].resource === network.resource || dontCheckResource) {
-
-    refreshNetworkIO(networkType, networkId, sourceNetworkId=null) { 
-        console.log(networkType);
+    
+    refreshNetworkIO(networkType, networkId, sourceNetworkId=null, confirmedConverterSupply=null) {
+        console.log(networkType, networkId, sourceNetworkId);
         let network = this.getNetwork(networkType, networkId);
         
-        // these are in the context of the current network
-        let convertersByOtherNetworkId = {
-            producer: {},
-            consumer: {}
-        };
-        let converterSupply = 0;
-        
+        let potentialConverterDemandByOtherNetworkId = {};
+     
         let producers = [];
         let producerSupply = 0;
-        
         let consumers = [];
         let demand = 0;
-
+        let demandLeft = 0;
+        let convertersByOtherNetworkId = {
+            producer: {/*
+                othernetworkId: {
+                    otherNetworkType: e.g. 'pipe',
+                    converters: [modules]
+                },
+                ...
+            */},
+            consumer: { /* same as above */ },
+        };
+        let potentialConverterSupply = 0;
+        
+        // sort and tally
         for (let cellPos of network.cellPositions) {
             let { module, networks } = this.getCell(cellPos);
             
@@ -357,7 +358,7 @@ export class Ship {
                 let { outputs } = module;
                 if (networkType in outputs) {
                     
-                    let { idealOutput, maxOutput } = outputs[networkType];
+                    let { maxOutput } = outputs[networkType];
                     
                     let notConverter = true;
                     for (let modulesNetworkType in outputs) {
@@ -365,6 +366,7 @@ export class Ship {
                             let converterTypeInContext = null;
                             if (outputs[networkType].maxOutput > 0 && outputs[modulesNetworkType].maxOutput < 0) {
                                 converterTypeInContext = 'producer';
+                                
                             } else if (outputs[networkType].maxOutput < 0 && outputs[modulesNetworkType].maxOutput > 0) {
                                 converterTypeInContext = 'consumer';
                             }
@@ -373,18 +375,22 @@ export class Ship {
                                 let otherNetworkId = networks[modulesNetworkType].id;
                                 if (otherNetworkId) {
                                     let converterTypeBucket = convertersByOtherNetworkId[converterTypeInContext];
-                                    if (!converterTypeBucket[otherNetworkId]) {
+                                    if (!converterTypeBucket[otherNetworkId]) { // Have we not already encountered this other network?
                                         converterTypeBucket[otherNetworkId] = {
                                             otherNetworkType: modulesNetworkType, converters: []
                                         };
                                     }
                                     converterTypeBucket[otherNetworkId].converters.push(module);
-                                    if (converterTypeInContext === "producer") {
-                                        converterSupply += maxOutput;
+                                } 
+                                
+                                if (converterTypeInContext === "producer") {
+                                    potentialConverterSupply += maxOutput;
+                                } else {
+                                    if (potentialConverterDemandByOtherNetworkId[otherNetworkId]) {
+                                        potentialConverterDemandByOtherNetworkId[otherNetworkId] -= maxOutput;
                                     } else {
-                                        demand -= idealOutput;
+                                        potentialConverterDemandByOtherNetworkId[otherNetworkId] = -maxOutput;
                                     }
-                                    
                                 }
                                 
                                 notConverter = false;
@@ -394,11 +400,11 @@ export class Ship {
                     }
                     
                     if (notConverter) {
-                        if (idealOutput < 0) {
-                            demand -= idealOutput;
+                        if (maxOutput < 0) { // this means that it's a consumer
+                            demand -= maxOutput;
                             consumers.push(module);
-                        } else {
-                            producerSupply += idealOutput;
+                        } else { // else it's a producer
+                            producerSupply += maxOutput;
                             producers.push(module);
                         }
                     }
@@ -407,71 +413,110 @@ export class Ship {
             }
         }
         
-        let demandleft = demand;
+        // add demand from downstream networks
+        let consumerConverters = convertersByOtherNetworkId.consumer;
+        for (let otherNetworkId in consumerConverters) {
+           let consumingNetworksCappedConverterDSRatio = this.getNetwork(
+                consumerConverters[otherNetworkId].otherNetworkType, otherNetworkId
+            ).cappedConverterDSRatio;
+            
+            demand += 
+                potentialConverterDemandByOtherNetworkId[otherNetworkId] 
+                * consumingNetworksCappedConverterDSRatio;
+        }
+        
+        // subtract demand satisfied by producers
+        demandLeft = demand;
         if (producerSupply) {
-            let cappedProducerDSRatio = Math.min(demand / producerSupply, 1);
+            let cappedProducerDSRatio = Math.min(demand / producerSupply, 1); // DS = DemandSupply
+            
             // relevant to network being refreshed
             for (let producer of producers) {
                 let relevantOutput = producer.outputs[networkType];
-                relevantOutput.output = relevantOutput.idealOutput * cappedProducerDSRatio;
+                relevantOutput.output = relevantOutput.maxOutput * cappedProducerDSRatio;
             }
-            demandleft -= (producerSupply * cappedProducerDSRatio);
+            demandLeft -= (producerSupply * cappedProducerDSRatio);
         }
         
+        // provide this ratio in network for upstream use
+        network.cappedConverterDSRatio = 
+            Math.min(demandLeft / potentialConverterSupply, 1);
+            
+        
+            
+        // If upstream is not the sourceNetwork, update upstream
+        // Also get confirmed converter supply
         let producerConverters = convertersByOtherNetworkId.producer;
         for (let otherNetworkId in producerConverters) {
-            
-            let cappedConverterDSRatio = Math.min(demandleft / converterSupply, 1);
-            let { otherNetworkType, converters} = producerConverters[otherNetworkId];
-            // setting ideal inputs
-            for (let producerConverter of converters) {
-                let otherOutput = producerConverter.outputs[otherNetworkType];
-                otherOutput.idealOutput = otherOutput.maxOutput * cappedConverterDSRatio;
+            if (otherNetworkId === sourceNetworkId) {
+                demandLeft -= confirmedConverterSupply;
+            } else {
+                demandLeft -= this.refreshNetworkIO(
+                    producerConverters[otherNetworkId].otherNetworkType,
+                    otherNetworkId,
+                    networkId
+                );
             }
+        }
+
+        // Now distribute confirmed supply
+        let confirmedSupply = demand - demandLeft;
+        let cappedSDRatio;
+        if (demand === 0) {
+            cappedSDRatio = 0;
+        } else {
+            cappedSDRatio = Math.min(confirmedSupply / demand, 1);
+        }
+        
+        // To consumers
+        for (let consumer of consumers) {
+            let relevantOutput = consumer.outputs[networkType];
+            relevantOutput.output = relevantOutput.maxOutput * cappedSDRatio;
+        }
+        
+        // Used immediately below
+        function calculateAndSetSupplyToConsumingNetwork(ship, otherNetworkId) {
+            let { otherNetworkType, converters } = convertersByOtherNetworkId.consumer[otherNetworkId];
+            let SupplyToConsumingNetwork = 0;
             
-            this.refreshNetworkIO(otherNetworkType, otherNetworkId, networkId);
+            let consumingNetworksCappedConverterDSRatio = ship.getNetwork(
+                consumerConverters[otherNetworkId].otherNetworkType, otherNetworkId
+            ).cappedConverterDSRatio;
+            let scale = consumingNetworksCappedConverterDSRatio * cappedSDRatio;
             
-            // setting outputs to actual inputs
+            //console.log('b');
+            //console.log(consumingNetworksCappedConverterDSRatio, cappedSDRatio, scale);
+            
             for (let converter of converters) {
                 let relevantOutput = converter.outputs[networkType];
                 let otherOutput = converter.outputs[otherNetworkType];
-                relevantOutput.output = -otherOutput.output;
-                demandleft -= relevantOutput.output;
-                converterSupply -= relevantOutput.maxOutput;
+                relevantOutput.output = relevantOutput.maxOutput * scale;
+                otherOutput.output = otherOutput.maxOutput * scale;
+                SupplyToConsumingNetwork += otherOutput.output;
             }
-
+            
+            return SupplyToConsumingNetwork;
         }
         
-        let confirmedSupply = demand - demandleft;
-        
-        let cappedSDRatio = Math.min(confirmedSupply / demand, 1);
-        if (!cappedSDRatio) {
-            cappedSDRatio = 0;
-        }
-        
-        
-        for (let consumer of consumers) {
-            let relevantOutput = consumer.outputs[networkType];
-            relevantOutput.output = relevantOutput.idealOutput * cappedSDRatio;
-        }
-        
-        let consumerConverters = convertersByOtherNetworkId.consumer;
+        // To downstream
+        let sourceNetworkIsConsumer = false;
         for (let otherNetworkId in consumerConverters) {
-            let { otherNetworkType, converters} = consumerConverters[otherNetworkId];
-            
-            // setting ideal inputs
-            for (let consumerConverter of converters) {
-                let relevantOutput = consumerConverter.outputs[networkType];
-                relevantOutput.output = relevantOutput.idealOutput * cappedSDRatio;
-            }
-            
-            if (sourceNetworkId !== otherNetworkId) {
-                this.refreshNetworkIO(otherNetworkType, otherNetworkId);
+            if (otherNetworkId === sourceNetworkId) {
+                sourceNetworkIsConsumer = true;
+            } else {
+                this.refreshNetworkIO(
+                    consumerConverters[otherNetworkId].otherNetworkType,
+                    otherNetworkId,
+                    networkId,
+                    calculateAndSetSupplyToConsumingNetwork(this, otherNetworkId)
+                );
             }
         }
-            
+        if (sourceNetworkIsConsumer) {
+            return calculateAndSetSupplyToConsumingNetwork(this, sourceNetworkId);
+        }
+        
     }
-
 
     * floodGenerator(networkType, cellPos) {
         let cellPositionsToSearchNow = [cellPos];

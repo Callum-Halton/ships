@@ -5,12 +5,11 @@ export default class ShipModule {
 	constructor(moduleName) {
 		this.name = moduleName;
 		
-		let { maxOutputs, type } = ShipModule.getSpecs(this);
+		let { maxOutputs } = ShipModule.getSpecs(this);
 		this.outputs = {};
 		for (let networkType in maxOutputs) {
 			this.outputs[networkType] = {
 				output: 0,
-				idealOutput: type === 'converter' ? 0 : maxOutputs[networkType].amount,
 				maxOutput: maxOutputs[networkType].amount,
 			};
 		}

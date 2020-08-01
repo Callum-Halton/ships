@@ -16,20 +16,22 @@ const nColors = {
   n5: 'rgb(255, 0, 255)',
 };
 
+class CellNetworkInfo {
+  constructor() {
+    this.dirs = [];
+    this.id = null;
+  }
+}
+
 export default class Cell {
 	constructor(module, pipeDirs) {
 		this.highlighted = false;
 		this.searched = false;
 		this.module = module;
 		this.networks = {
-		  pipe: {
-		    dirs: [],
-		    id: null,
-		  },
-		  cable: {
-		    dirs: [],
-		    id: null,
-		  },
+		  pipe: new CellNetworkInfo(),
+		  cable: new CellNetworkInfo(),
+		  duct: new CellNetworkInfo(),
 		};
 	}
 
@@ -47,10 +49,13 @@ export default class Cell {
       ctx.fillStyle = 'rgb(0, 0, 0)';
       
       let connectionOffset = pipeWidth;
-      for (let networkType of ['cable', 'pipe']) {
+      for (let networkType of ['cable', 'pipe', 'duct']) {
         if (networkType === 'pipe') {
           connectionOffset = -pipeWidth;
           ctx.fillStyle = 'rgb(200, 200, 200)';
+        } else if (networkType === 'duct') {
+          connectionOffset = 0;
+          ctx.fillStyle = 'rgb(100, 150, 100)';
         }
         for (let dir of networks[networkType].dirs) {
           if ( Vector2.areEqual(dir, Vector2.right) ) {

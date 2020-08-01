@@ -39,15 +39,28 @@ export const shipModuleSpecs = {
     ),
     
     fuelPlant: new Spec( new RGB(0, 225, 225),
-        'consumer',
+        'producer',
         { pipe: { amount: 10, resource: 'fuel'} },
         null
     ),
-    
+    /*
     tank: new Spec ( new RGB(0, 255, 0),
         'storage',
         { pipe: { amount: 10, resource: 'fuel'} },
-        //{amount: 1000, resource: 'fluid'}
+        {amount: 1000, resource: 'fluid'}
+    ),
+    */
+    lifeSupport: new Spec ( new RGB(225, 0, 225),
+        'converter',
+        {
+            cable: { amount: -10, resource: 'power'},
+            duct: { amount: 10, resource: 'air'}
+        },
+        null
+    ),
+    vent: new Spec ( new RGB(100, 150, 100),
+        'consumer',
+        { duct: { amount: -10, resource: 'air'} },
         null
     ),
 };

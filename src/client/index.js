@@ -22,12 +22,13 @@ socket.on('goldenShip', shipState => {
 
 socket.on('addModule', data => ship.addModule(data.moduleName, data.cellPos));
 socket.on('addConnection', data => ship.addConnection(data.networkType, data.cellPositions));
+socket.on('deleteModule', cellPos => ship.deleteModule(cellPos));
 socket.on('deleteConnection', data => ship.deleteConnection(data.networkType, data.cellPositions));
 
 const actionOptions = document.getElementById('actionOptions');
 const partOptions = document.getElementById('partOptions');
 let lastClickCellPos = null;
-const networkTypes = ['pipe', 'cable'];
+const networkTypes = ['pipe', 'cable', 'duct'];
 
 window.addEventListener("keydown", event => {
   let keyPressed = String.fromCharCode(event.keyCode).toLocaleLowerCase();
@@ -62,6 +63,18 @@ window.addEventListener("keydown", event => {
     case 'p':
       partOptions.value = 'pipe';
       break;
+    case 'd':
+      partOptions.value = 'duct';
+      break;
+    case 'l':
+      partOptions.value = 'lifeSupport';
+      break;
+    case 'v':
+      partOptions.value = 'vent';
+      break;
+    case 't':
+      runRefreshTest();
+      break;
   }
 }, false);
 
@@ -93,8 +106,10 @@ canvas.addEventListener('click', event => {
     case 'deleteModule':
       changeModule(cellPos, isAdd);
       break;
-    default: // debug
-      console.log(ship.getCell(cellPos).module);
+    default: // debugging
+    console.log(ship.getCell(cellPos).module.outputs);
+      /*let { demand, demandLeft, potentialConverterSupply} = ship.getNetwork(partOptions.value, ship.getCell(cellPos).networks[partOptions.value].id);
+      console.log(demand, demandLeft, potentialConverterSupply);*/
   }
 
   
@@ -151,4 +166,48 @@ function draw() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ship.draw(ctx);
   window.requestAnimationFrame(draw);
+}
+
+function runRefreshTest() {
+  ship.addModule('fuelPlant',  new Vector2(0,0));
+  ship.addModule('reactor',    new Vector2(1,0));
+  ship.addModule('engine',     new Vector2(2,0));
+  ship.addConnection('pipe',  [new Vector2(0,0), new Vector2(1,0)]);
+  ship.addConnection('cable',  [new Vector2(1,0), new Vector2(2,0)]);
+  /*
+  ship.addModule('fuelPlant',  new Vector2(0,0));
+  ship.addModule('reactor',    new Vector2(1,0));
+  ship.addModule('reactor',    new Vector2(1,1));
+  ship.addConnection('pipe',  [new Vector2(0,0), new Vector2(1,0)]);
+  ship.addConnection('pipe',  [new Vector2(0,1), new Vector2(1,1)]);
+  ship.addConnection('pipe',  [new Vector2(0,0), new Vector2(0,1)]);
+  ship.addConnection('cable', [new Vector2(1,0), new Vector2(2,0)]);
+  ship.addConnection('cable', [new Vector2(1,1), new Vector2(2,1)]);
+  ship.addModule('engine',     new Vector2(2,0));
+  ship.addModule('engine',     new Vector2(2,1));
+  */ 
+  
+  /*
+  ship.addModule('fuelPlant',   new Vector2(0,0));
+  ship.addModule('fuelPlant',   new Vector2(0,1));
+  ship.addModule('reactor',     new Vector2(1,0));
+  ship.addModule('reactor',     new Vector2(1,1));
+  ship.addModule('lifeSupport', new Vector2(2,0));
+  ship.addModule('lifeSupport', new Vector2(2,1));
+  ship.addModule('lifeSupport', new Vector2(2,2));
+  ship.addModule('vent',        new Vector2(3,0));
+  ship.addModule('vent',        new Vector2(3,1));
+  ship.addModule('vent',        new Vector2(3,2));
+  
+  ship.addConnection('pipe', [new Vector2(0,0), new Vector2(1,0)]); //n0
+  ship.addConnection('pipe', [new Vector2(0,0), new Vector2(0,1)]);
+  ship.addConnection('pipe', [new Vector2(0,1), new Vector2(1,1)]);
+  ship.addConnection('cable', [new Vector2(1,0), new Vector2(2,0)]);
+  ship.addConnection('cable', [new Vector2(1,1), new Vector2(2,1)]);
+  ship.addConnection('cable', [new Vector2(2,1), new Vector2(2,2)]);
+  ship.addConnection('duct', [new Vector2(2,0), new Vector2(3,0)]);
+  ship.addConnection('duct', [new Vector2(3,0), new Vector2(3,1)]);
+  ship.addConnection('duct', [new Vector2(2,1), new Vector2(3,1)]);
+  ship.addConnection('duct', [new Vector2(2,2), new Vector2(3,2)]);
+  */
 }
