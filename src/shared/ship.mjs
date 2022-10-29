@@ -337,7 +337,7 @@ export class Ship {
         let producerSupply = 0;
         let consumers = [];
         let demand = 0;
-        let demandLeft = 0;
+        let demandLeft = 0; // can this be removed and declared at next occurence?
         let convertersByOtherNetworkId = {
             producer: {/*
                 othernetworkId: {
@@ -442,7 +442,6 @@ export class Ship {
         network.cappedConverterDSRatio = 
             Math.min(demandLeft / potentialConverterSupply, 1);
             
-        
             
         // If upstream is not the sourceNetwork, update upstream
         // Also get confirmed converter supply
@@ -476,16 +475,12 @@ export class Ship {
         
         // Used immediately below
         function calculateAndSetSupplyToConsumingNetwork(ship, otherNetworkId) {
-            let { otherNetworkType, converters } = convertersByOtherNetworkId.consumer[otherNetworkId];
+            let { otherNetworkType, converters } = consumerConverters[otherNetworkId];
             let SupplyToConsumingNetwork = 0;
             
             let consumingNetworksCappedConverterDSRatio = ship.getNetwork(
-                consumerConverters[otherNetworkId].otherNetworkType, otherNetworkId
-            ).cappedConverterDSRatio;
+                otherNetworkType, otherNetworkId).cappedConverterDSRatio;
             let scale = consumingNetworksCappedConverterDSRatio * cappedSDRatio;
-            
-            //console.log('b');
-            //console.log(consumingNetworksCappedConverterDSRatio, cappedSDRatio, scale);
             
             for (let converter of converters) {
                 let relevantOutput = converter.outputs[networkType];
